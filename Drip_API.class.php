@@ -4,34 +4,38 @@
  * Drip API
  *
  * @author Svetoslav Marinov (SLAVI)
+ * @contributor Paul Goodchild
  */
 Class Drip_Api {
-
-	private $version = "2";
-
-	private $api_token = '';
-
-	private $error_code = '';
-
-	private $error_message = '';
-
-	private $user_agent = "Drip API PHP Wrapper (getdrip.com)";
-
-	private $api_end_point = 'https://api.getdrip.com/v2/';
-
-	//private $api_end_point = 'http://localhost/echo/'; // dbg only
-	private $recent_req_info = array(); // holds dbg info from a recent request
-
-	private $timeout = 30;
-
-	private $connect_timeout = 30;
-
-	private $debug = false; // Requests headers and other info to be fetched from the request. Command-line windows will show info in STDERR
 
 	const GET = 1;
 	const POST = 2;
 	const DELETE = 3;
 	const PUT = 4;
+
+	private $error_code = '';
+	private $error_message = '';
+	private $user_agent = "Drip API PHP Wrapper (getdrip.com)";
+	private $api_end_point = 'https://api.getdrip.com/v%s/';
+	private $recent_req_info = array(); // holds dbg info from a recent request
+	private $timeout = 30;
+	private $connect_timeout = 30;
+	private $debug = false; // Requests headers and other info to be fetched from the request. Command-line windows will show info in STDERR
+
+	/**
+	 * @var int
+	 */
+	private $nAccountId;
+
+	/**
+	 * @var string
+	 */
+	private $api_token = '';
+
+	/**
+	 * @var int
+	 */
+	private $version = 2;
 
 	/**
 	 * Accepts the token and saves it internally.
@@ -39,14 +43,8 @@ Class Drip_Api {
 	 * @param string $api_token e.g. qsor48ughrjufyu2dadraasfa1212424
 	 * @throws Exception
 	 */
-	public function __construct( $api_token ) {
-		$api_token = trim( $api_token );
-
-		if ( empty( $api_token ) || !preg_match( '#^[\w-]+$#si', $api_token ) ) {
-			throw new Exception( "Missing or invalid Drip API token." );
-		}
-
-		$this->api_token = $api_token;
+	public function __construct( $api_token = '' ) {
+		$this->setApiToken( $api_token );
 	}
 
 	/**
@@ -57,12 +55,10 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function get_campaigns( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
 
 		if ( isset( $params[ 'status' ] ) ) {
 			if ( !in_array( $params[ 'status' ], array( 'active', 'draft', 'paused', 'all' ) ) ) {
@@ -73,7 +69,7 @@ Class Drip_Api {
 			$params[ 'status' ] = 'active'; // api defaults to all but we want active ones
 		}
 
-		$url = $this->api_end_point . "$account_id/campaigns";
+		$url = $this->getApiUrlFull( 'campaigns' );
 		$res = $this->make_request( $url, $params );
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
@@ -99,22 +95,20 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function fetch_campaign( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
 
 		if ( !empty( $params[ 'campaign_id' ] ) ) {
 			$campaign_id = $params[ 'campaign_id' ];
-			unset( $params[ 'campaign_id' ] ); // clear it from the params
+			unset( $params[ 'campaign_id' ] );
 		}
 		else {
 			throw new Exception( "Campaign ID was not specified. You must specify a Campaign ID" );
 		}
 
-		$url = $this->api_end_point . "$account_id/campaigns/$campaign_id";
+		$url = $this->getApiUrlFull( "campaigns/$campaign_id" );
 		$res = $this->make_request( $url, $params );
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
@@ -140,7 +134,7 @@ Class Drip_Api {
 	 * @return bool/array
 	 */
 	public function get_accounts() {
-		$url = $this->api_end_point . 'accounts';
+		$url = $this->getApiEndPoint() . 'accounts';
 		$res = $this->make_request( $url );
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
@@ -164,19 +158,13 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function create_or_update_subscriber( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
 
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
-
-		$api_action = "/$account_id/subscribers";
-		$url = $this->api_end_point . $api_action;
-
-		// The API wants the params to be JSON encoded
-		$req_params = array( 'subscribers' => array( $params ) );
-
+		$url = $this->getApiUrlFull( 'subscribers' );
+		$req_params = array( 'subscribers' => array( $params ) ); // The API wants the params to be JSON encoded
 		$res = $this->make_request( $url, $req_params, self::POST );
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
@@ -198,12 +186,10 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function fetch_subscriber( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
 
 		if ( !empty( $params[ 'subscriber_id' ] ) ) {
 			$subscriber_id = $params[ 'subscriber_id' ];
@@ -218,10 +204,7 @@ Class Drip_Api {
 		}
 
 		$subscriber_id = urlencode( $subscriber_id );
-
-		$api_action = "$account_id/subscribers/$subscriber_id";
-		$url = $this->api_end_point . $api_action;
-
+		$url = $this->getApiUrlFull( "subscribers/$subscriber_id" );
 		$res = $this->make_request( $url );
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
@@ -243,8 +226,9 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function fetch_all_subscribers( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
 
 		// reflects the API Defaults: https://www.getdrip.com/docs/rest-api#subscribers
@@ -256,10 +240,7 @@ Class Drip_Api {
 			$params
 		);
 
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] );// clear it from the params
-
-		$url = sprintf( '%s%s/subscribers', $this->api_end_point, $account_id );
+		$url = $this->getApiUrlFull( 'subscribers' );
 		$res = $this->make_request( $url, $params );
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
@@ -288,12 +269,10 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function subscribe_subscriber( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
 
 		if ( empty( $params[ 'campaign_id' ] ) ) {
 			throw new Exception( "Campaign ID not specified" );
@@ -310,8 +289,7 @@ Class Drip_Api {
 			$params[ 'double_optin' ] = true;
 		}
 
-		$api_action = "$account_id/campaigns/$campaign_id/subscribers";
-		$url = $this->api_end_point . $api_action;
+		$url = $this->getApiUrlFull( "campaigns/$campaign_id/subscribers" );
 
 		// The API wants the params to be JSON encoded
 		$req_params = array( 'subscribers' => array( $params ) );
@@ -339,12 +317,10 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function unsubscribe_subscriber( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
 
 		if ( !empty( $params[ 'subscriber_id' ] ) ) {
 			$subscriber_id = $params[ 'subscriber_id' ];
@@ -359,12 +335,8 @@ Class Drip_Api {
 		}
 
 		$subscriber_id = urlencode( $subscriber_id );
-
-		$api_action = "$account_id/subscribers/$subscriber_id/unsubscribe";
-		$url = $this->api_end_point . $api_action;
-
-		$req_params = $params;
-		$res = $this->make_request( $url, $req_params, self::POST );
+		$url = $this->getApiUrlFull( "subscribers/$subscriber_id/unsubscribe" );
+		$res = $this->make_request( $url, $params, self::POST );
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
 			$raw_json = json_decode( $res[ 'buffer' ], true );
@@ -387,23 +359,19 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function tag_subscriber( $params ) {
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
 
 		if ( empty( $params[ 'email' ] ) ) {
 			throw new Exception( "Email was not specified" );
 		}
-
 		if ( empty( $params[ 'tag' ] ) ) {
 			throw new Exception( "Tag was not specified" );
 		}
 
-		$api_action = "$account_id/tags";
-		$url = $this->api_end_point . $api_action;
+		$url = $this->getApiUrlFull( 'tags' );
 
 		// The API wants the params to be JSON encoded
 		$req_params = array( 'tags' => array( $params ) );
@@ -419,12 +387,10 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function subscriber_delete( $aParams ) {
-		if ( empty( $aParams[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $aParams[ 'account_id' ];
-		unset( $aParams[ 'account_id' ] );
 
 		if ( !empty( $aParams[ 'subscriber_id' ] ) ) {
 			$subscriber_id = $aParams[ 'subscriber_id' ];
@@ -438,8 +404,9 @@ Class Drip_Api {
 			throw new Exception( "Subscriber ID or Email was not specified. You must specify either Subscriber ID or Email." );
 		}
 
-		$url = sprintf( '%s%s/subscribers/%s', $this->api_end_point, $account_id, urlencode( $subscriber_id ) );
+		$url = $this->getApiUrlFull( sprintf( 'subscribers/%s', urlencode( $subscriber_id ) ) );
 		$res = $this->make_request( $url, [], self::DELETE );
+
 		return ( isset( $res[ 'http_code' ] ) && ( $res[ 'http_code' ] == 204 ) );
 	}
 
@@ -450,28 +417,20 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function untag_subscriber( $params ) {
-
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
-
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
 
 		if ( empty( $params[ 'email' ] ) ) {
 			throw new Exception( "Email was not specified" );
 		}
-
 		if ( empty( $params[ 'tag' ] ) ) {
 			throw new Exception( "Tag was not specified" );
 		}
 
-		$api_action = "$account_id/tags";
-		$url = $this->api_end_point . $api_action;
-
-		// The API wants the params to be JSON encoded
-		$req_params = array( 'tags' => array( $params ) );
-
+		$url = $this->getApiUrlFull( 'tags' );
+		$req_params = array( 'tags' => array( $params ) ); // The API wants the params to be JSON encoded
 		$res = $this->make_request( $url, $req_params, self::DELETE );
 
 		return ( isset( $res[ 'http_code' ] ) && ( $res[ 'http_code' ] == 204 ) );
@@ -484,24 +443,17 @@ Class Drip_Api {
 	 * @throws Exception
 	 */
 	public function record_event( $params ) {
-
-		if ( empty( $params[ 'account_id' ] ) ) {
-			throw new Exception( "Account ID not specified" );
+		if ( !empty( $params[ 'account_id' ] ) ) {
+			$this->setAccountId( $params[ 'account_id' ] );
+			unset( $params[ 'account_id' ] );
 		}
 
 		if ( empty( $params[ 'action' ] ) ) {
 			throw new Exception( "Action was not specified" );
 		}
 
-		$account_id = $params[ 'account_id' ];
-		unset( $params[ 'account_id' ] ); // clear it from the params
-
-		$api_action = "$account_id/events";
-		$url = $this->api_end_point . $api_action;
-
-		// The API wants the params to be JSON encoded
-		$req_params = array( 'events' => array( $params ) );
-
+		$url = $this->getApiUrlFull( 'events' );
+		$req_params = array( 'events' => array( $params ) ); // The API wants the params to be JSON encoded
 		$res = $this->make_request( $url, $req_params, self::POST );
 
 		return ( isset( $res[ 'http_code' ] ) && ( $res[ 'http_code' ] == 204 ) );
@@ -520,9 +472,11 @@ Class Drip_Api {
 			throw new Exception( "Cannot find cURL php extension or it's not loaded." );
 		}
 
+		$sApiToken = $this->getApiToken(); // throws Exception
+
 		$ch = curl_init();
 
-		if ( $this->debug ) {
+		if ( $this->isDebug() ) {
 			//curl_setopt($ch, CURLOPT_HEADER, true);
 			// TRUE to output verbose information. Writes output to STDERR, or the file specified using CURLOPT_STDERR.
 			curl_setopt( $ch, CURLOPT_VERBOSE, true );
@@ -537,7 +491,7 @@ Class Drip_Api {
 		curl_setopt( $ch, CURLOPT_SSL_VERIFYHOST, false );
 		curl_setopt( $ch, CURLOPT_TIMEOUT, $this->timeout );
 		curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT, $this->connect_timeout );
-		curl_setopt( $ch, CURLOPT_USERPWD, $this->api_token . ":" . '' ); // no pwd
+		curl_setopt( $ch, CURLOPT_USERPWD, $sApiToken . ":" . '' ); // no pwd
 		curl_setopt( $ch, CURLOPT_USERAGENT, empty( $params[ 'user_agent' ] ) ? $this->user_agent : $params[ 'user_agent' ] );
 
 		if ( $req_method == self::POST ) { // We want post but no params to supply. Probably we have a nice link structure which includes all the info.
@@ -579,7 +533,7 @@ Class Drip_Api {
 			'error'     => empty( $buffer ) ? curl_error( $ch ) : '',
 			'error_no'  => empty( $buffer ) ? curl_errno( $ch ) : '',
 			'http_code' => curl_getinfo( $ch, CURLINFO_HTTP_CODE ),
-			'debug'     => $this->debug ? curl_getinfo( $ch ) : '',
+			'debug'     => $this->isDebug() ? curl_getinfo( $ch ) : '',
 		);
 
 		curl_close( $ch );
@@ -687,7 +641,94 @@ Class Drip_Api {
 	}
 
 	// tmp
+
 	public function __call( $method, $args ) {
 		return array();
+	}
+
+	/**
+	 * @return int
+	 * @throws Exception
+	 */
+	public function getAccountId() {
+		if ( empty( $this->nAccountId ) ) {
+			throw new Exception( 'Account ID not specified' );
+		}
+		return $this->nAccountId;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getApiEndPoint() {
+		return sprintf( $this->api_end_point, $this->getApiVersion() );
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getApiUrlBaseForAccount() {
+		return $this->getApiEndPoint() . $this->getAccountId();
+	}
+
+	/**
+	 * Assumes that this is an Account-based action - i.e. requires Account ID to have been set.
+	 * @param string $sApiAction
+	 * @return string
+	 */
+	public function getApiUrlFull( $sApiAction ) {
+		return sprintf( '%/%s', rtrim( $this->getApiUrlBaseForAccount(), '/' ), ltrim( $sApiAction, '/' ) );
+	}
+
+	/**
+	 * @return string
+	 * @throws Exception
+	 */
+	public function getApiToken() {
+		if ( empty( $this->api_token ) || !preg_match( '#^[\w-]+$#si', $this->api_token ) ) {
+			throw new Exception( 'Missing or invalid Drip API token.' );
+		}
+		return $this->api_token;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getApiVersion() {
+		return $this->version;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function isDebug() {
+		return $this->debug;
+	}
+
+	/**
+	 * @param string $api_token
+	 * @return $this
+	 */
+	public function setApiToken( $api_token = '' ) {
+		$this->api_token = trim( $api_token );
+		return $this;
+	}
+
+	/**
+	 * @param int $nAccountId
+	 * @return $this
+	 */
+	public function setAccountId( $nAccountId ) {
+		$this->nAccountId = $nAccountId;
+		return $this;
+	}
+
+	/**
+	 * @param bool $debug
+	 * @return Drip_Api
+	 */
+	public function setDebug( $debug ) {
+		$this->debug = $debug;
+		return $this;
 	}
 }
