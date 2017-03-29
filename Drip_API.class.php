@@ -72,19 +72,7 @@ Class Drip_Api {
 		$url = $this->getApiUrlFull( 'campaigns' );
 		$res = $this->make_request( $url, $params );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		// here we distinguish errors from no campaigns.
-		// when there's no json that's an error
-		$campaigns = empty( $raw_json )
-			? false
-			: empty( $raw_json[ 'campaigns' ] )
-				? array()
-				: $raw_json[ 'campaigns' ];
-
-		return $campaigns;
+		return $this->extractDataFromBuffer( $res, 'campaigns' );
 	}
 
 	/**
@@ -108,22 +96,10 @@ Class Drip_Api {
 			throw new Exception( "Campaign ID was not specified. You must specify a Campaign ID" );
 		}
 
-		$url = $this->getApiUrlFull( "campaigns/$campaign_id" );
+		$url = $this->getApiUrlFull( sprintf( 'campaigns/%s', urlencode( $campaign_id ) ) );
 		$res = $this->make_request( $url, $params );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		// here we distinguish errors from no campaign
-		// when there's no json that's an error
-		$campaigns = empty( $raw_json )
-			? false
-			: empty( $raw_json[ 'campaigns' ] )
-				? array()
-				: $raw_json[ 'campaigns' ];
-
-		return $campaigns;
+		return $this->extractDataFromBuffer( $res, 'campaigns' );
 	}
 
 	/**
@@ -137,17 +113,7 @@ Class Drip_Api {
 		$url = $this->getApiEndPoint() . 'accounts';
 		$res = $this->make_request( $url );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		$data = empty( $raw_json )
-			? false
-			: empty( $raw_json[ 'accounts' ] )
-				? array()
-				: $raw_json[ 'accounts' ];
-
-		return $data;
+		return $this->extractDataFromBuffer( $res, 'accounts' );
 	}
 
 	/**
@@ -167,17 +133,8 @@ Class Drip_Api {
 		$req_params = array( 'subscribers' => array( $params ) ); // The API wants the params to be JSON encoded
 		$res = $this->make_request( $url, $req_params, self::POST );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		$data = empty( $raw_json )
-			? false
-			: empty( $raw_json[ 'subscribers' ] )
-				? array()
-				: $raw_json[ 'subscribers' ][ 0 ];
-
-		return $data;
+		$aExtracted = $this->extractDataFromBuffer( $res, 'subscribers' );
+		return !empty( $aExtracted[ 0 ] ) ? $aExtracted[ 0 ] : false;
 	}
 
 	/**
@@ -203,21 +160,11 @@ Class Drip_Api {
 			throw new Exception( "Subscriber ID or Email was not specified. You must specify either Subscriber ID or Email." );
 		}
 
-		$subscriber_id = urlencode( $subscriber_id );
-		$url = $this->getApiUrlFull( "subscribers/$subscriber_id" );
+		$url = $this->getApiUrlFull( sprintf( 'subscribers/%s', urlencode( $subscriber_id ) ) );
 		$res = $this->make_request( $url );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		$data = empty( $raw_json )
-			? false
-			: empty( $raw_json[ 'subscribers' ] )
-				? array()
-				: $raw_json[ 'subscribers' ][ 0 ];
-
-		return $data;
+		$aExtracted = $this->extractDataFromBuffer( $res, 'subscribers' );
+		return !empty( $aExtracted[ 0 ] ) ? $aExtracted[ 0 ] : false;
 	}
 
 	/**
@@ -270,17 +217,7 @@ Class Drip_Api {
 		$url = $this->getApiUrlFull( 'subscribers' );
 		$res = $this->make_request( $url, $params );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		if ( empty( $raw_json ) ) {
-			$data = false;
-		}
-		else {
-			$data = empty( $raw_json[ 'subscribers' ] ) ? array() : $raw_json[ 'subscribers' ];
-		}
-		return $data;
+		return $this->extractDataFromBuffer( $res, 'subscribers' );
 	}
 
 	/**
@@ -311,24 +248,14 @@ Class Drip_Api {
 			$params[ 'double_optin' ] = true;
 		}
 
-		$url = $this->getApiUrlFull( "campaigns/$campaign_id/subscribers" );
+		$url = $this->getApiUrlFull( sprintf( 'campaigns/%s/subscribers', urlencode( $campaign_id ) ) );
 
 		// The API wants the params to be JSON encoded
 		$req_params = array( 'subscribers' => array( $params ) );
-
 		$res = $this->make_request( $url, $req_params, self::POST );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		$data = empty( $raw_json )
-			? false
-			: empty( $raw_json[ 'subscribers' ] )
-				? array()
-				: $raw_json[ 'subscribers' ][ 0 ];
-
-		return $data;
+		$aExtracted = $this->extractDataFromBuffer( $res, 'subscribers' );
+		return !empty( $aExtracted[ 0 ] ) ? $aExtracted[ 0 ] : false;
 	}
 
 	/**
@@ -356,21 +283,11 @@ Class Drip_Api {
 			throw new Exception( "Subscriber ID or Email was not specified. You must specify either Subscriber ID or Email." );
 		}
 
-		$subscriber_id = urlencode( $subscriber_id );
-		$url = $this->getApiUrlFull( "subscribers/$subscriber_id/unsubscribe" );
+		$url = $this->getApiUrlFull( sprintf( 'subscribers/%s/unsubscribe', urlencode( $subscriber_id ) ) );
 		$res = $this->make_request( $url, $params, self::POST );
 
-		if ( !empty( $res[ 'buffer' ] ) ) {
-			$raw_json = json_decode( $res[ 'buffer' ], true );
-		}
-
-		$data = empty( $raw_json )
-			? false
-			: empty( $raw_json[ 'subscribers' ] )
-				? array()
-				: $raw_json[ 'subscribers' ][ 0 ];
-
-		return $data;
+		$aExtracted = $this->extractDataFromBuffer( $res, 'subscribers' );
+		return !empty( $aExtracted[ 0 ] ) ? $aExtracted[ 0 ] : false;
 	}
 
 	/**
@@ -660,6 +577,26 @@ Class Drip_Api {
 			$this->error_code = $res[ 'http_code' ];
 		}
 		return true;
+	}
+
+	/**
+	 * @param array $aResult
+	 * @param string $sKey
+	 * @return array|false
+	 */
+	protected function extractDataFromBuffer( $aResult, $sKey ) {
+
+		if ( !empty( $aResult[ 'buffer' ] ) ) {
+			$aDecodedJson = json_decode( $aResult[ 'buffer' ], true );
+		}
+
+		if ( empty( $aDecodedJson ) ) {
+			$aData = false;
+		}
+		else {
+			$aData = empty( $aDecodedJson[ $sKey ] ) ? array() : $aDecodedJson[ $sKey ];
+		}
+		return $aData;
 	}
 
 	// tmp
