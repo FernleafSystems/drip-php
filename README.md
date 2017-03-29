@@ -3,7 +3,7 @@ Drip API Wrapper - PHP
 
 An object-oriented PHP wrapper for Drip's REST API v2.0
 
-2017-03-29 Changes
+v1.1.0 Changes (2017-03-29)
 --
 
 Move towards getters and setters for setting and accessing object data.
