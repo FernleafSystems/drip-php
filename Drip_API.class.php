@@ -238,7 +238,7 @@ Class Drip_Api {
 		$account_id = $params[ 'account_id' ];
 		unset( $params[ 'account_id' ] );// clear it from the params
 
-		$url = sprintf( '%s%s/%s', $this->api_end_point, $account_id, 'subscribers' );
+		$url = sprintf( '%s%s/subscribers', $this->api_end_point, $account_id );
 		$res = $this->make_request($url, $params);
 
 		if ( !empty( $res[ 'buffer' ] ) ) {
@@ -394,8 +394,37 @@ Class Drip_Api {
         return $status;
     }
 
+	/**
+	 * @param array $aParams
+	 * @return bool
+	 * @throws Exception
+	 */
+	public function subscriber_delete( $aParams ) {
+		if ( empty( $aParams[ 'account_id' ] ) ) {
+			throw new Exception( "Account ID not specified" );
+		}
+
+		$account_id = $aParams[ 'account_id' ];
+		unset( $aParams[ 'account_id' ] );
+
+		if ( !empty( $aParams[ 'subscriber_id' ] ) ) {
+			$subscriber_id = $aParams[ 'subscriber_id' ];
+			unset( $aParams[ 'subscriber_id' ] );
+		}
+		elseif ( !empty( $aParams[ 'email' ] ) ) {
+			$subscriber_id = $aParams[ 'email' ];
+			unset( $aParams[ 'email' ] );
+		}
+		else {
+			throw new Exception("Subscriber ID or Email was not specified. You must specify either Subscriber ID or Email.");
+		}
+
+		$url = sprintf( '%s%s/subscribers/%s', $this->api_end_point, $account_id, urlencode( $subscriber_id ) );
+		$res = $this->make_request( $url, [], self::DELETE );
+		return ( isset( $res[ 'http_code' ] ) && ( $res[ 'http_code' ] == 204 ) );
+	}
+
     /**
-     *
      * This calls DELETE /:account_id/tags to remove the tags. It just returns some status code no content
      * 
      * @param array $params
