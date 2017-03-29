@@ -216,12 +216,54 @@ Class Drip_Api {
         return $data;
     }
 
-    /**
-     * Subscribes a user to a given campaign for a given account.
-     * 
-     * @param array $params
-     * @param array $accounts
-     */
+	/**
+	 * @param array $params
+	 * @return array|bool
+	 * @throws Exception
+	 */
+	public function fetch_all_subscribers( $params ) {
+		if ( empty( $params[ 'account_id' ] ) ) {
+			throw new Exception( "Account ID not specified" );
+		}
+
+		// reflects the API Defaults: https://www.getdrip.com/docs/rest-api#subscribers
+		$params = array_merge(
+			[
+				'page' => 1,
+				'per_page' => 100,
+			],
+			$params
+		);
+
+		$account_id = $params[ 'account_id' ];
+		unset( $params[ 'account_id' ] );// clear it from the params
+
+		$url = sprintf( '%s%s/%s', $this->api_end_point, $account_id, 'subscribers' );
+		$res = $this->make_request($url, $params);
+
+		if ( !empty( $res[ 'buffer' ] ) ) {
+			$raw_json = json_decode( $res[ 'buffer' ], true );
+		}
+
+		if ( empty( $raw_json ) ) {
+			$data = false;
+		}
+		else if ( empty( $raw_json[ 'subscribers' ] ) ) {
+			$data = array();
+		}
+		else {
+			$data = $raw_json[ 'subscribers' ];
+		}
+		return $data;
+	}
+
+	/**
+	 * Subscribes a user to a given campaign for a given account.
+	 *
+	 * @param array $params
+	 * @return array|bool
+	 * @throws Exception
+	 */
     public function subscribe_subscriber($params) {
         if (empty($params['account_id'])) {
             throw new Exception("Account ID not specified");
