@@ -699,7 +699,7 @@ Class Drip_Api {
 	 * @return string
 	 */
 	public function getApiUrlFull( $sApiAction ) {
-		return sprintf( '%/%s', rtrim( $this->getApiUrlBaseForAccount(), '/' ), ltrim( $sApiAction, '/' ) );
+		return sprintf( '%s/%s', rtrim( $this->getApiUrlBaseForAccount(), '/' ), ltrim( $sApiAction, '/' ) );
 	}
 
 	/**
