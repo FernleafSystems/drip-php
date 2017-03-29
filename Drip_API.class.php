@@ -221,6 +221,33 @@ Class Drip_Api {
 	}
 
 	/**
+	 * @param array $aParams
+	 * @return array
+	 */
+	public function fetch_all_subscribers( $aParams ) {
+		$aParams = array_merge(
+			array(
+				'page' => 1,
+				'per_page' => 1000
+			),
+			$aParams
+		);
+
+		$aAllSubs = [];
+
+		do {
+			$aResult = $this->fetch_subscribers( $aParams );
+			$bHasResults = !empty( $aResult ) && is_array( $aResult );
+			if ( $bHasResults ) {
+				$aAllSubs = array_merge( $aAllSubs, $aResult );
+				$aParams[ 'page' ] += 1;
+			}
+		} while ( $bHasResults );
+
+		return $aAllSubs;
+	}
+
+	/**
 	 * @param array $params
 	 * @return array|bool
 	 * @throws Exception
@@ -251,12 +278,7 @@ Class Drip_Api {
 			$data = false;
 		}
 		else {
-			if ( empty( $raw_json[ 'subscribers' ] ) ) {
-				$data = array();
-			}
-			else {
-				$data = $raw_json[ 'subscribers' ];
-			}
+			$data = empty( $raw_json[ 'subscribers' ] ) ? array() : $raw_json[ 'subscribers' ];
 		}
 		return $data;
 	}
