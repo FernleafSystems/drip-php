@@ -225,7 +225,7 @@ Class Drip_Api {
 	 * @return array|bool
 	 * @throws Exception
 	 */
-	public function fetch_all_subscribers( $params ) {
+	public function fetch_subscribers( $params ) {
 		if ( !empty( $params[ 'account_id' ] ) ) {
 			$this->setAccountId( $params[ 'account_id' ] );
 			unset( $params[ 'account_id' ] );
